@@ -1,7 +1,13 @@
+from .responses import GetTimestamp as TimestampResponse
+from .responses import Response
+
+
 class Command:
     BYTE_INIT = "02"
     BYTE_END = "03"
     BYTE_START_MESSAGE = "00"
+
+    response = Response
 
     def payload(self):
         return ""
@@ -9,6 +15,12 @@ class Command:
     def bytes(self):
         message = self.message()
         return bytearray.fromhex(message)
+
+    def parse_response(self, raw_response):
+        return self.response(raw_response)
+
+    def __repr__(self):
+        return self.__class__.__name__
 
     def message(self):
         """
@@ -42,5 +54,7 @@ class Command:
 
 
 class GetTimestamp(Command):
+    response = TimestampResponse
+
     def payload(self):
         return "01+RH+00"

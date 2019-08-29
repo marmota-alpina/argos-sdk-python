@@ -27,8 +27,11 @@ ips = [
 for ip in ips:
     try:
         with ArgosSocket(ip) as s:
-            output = s.send_command(GetTimestamp())
-            response = responses.GetTimestamp(output)
+            response = s.send_command(GetTimestamp())
             print(response["timestamp"])
-    except exceptions.ConnectTimeout as e:
+    except (
+        exceptions.ConnectTimeout,
+        exceptions.SendCommandTimeout,
+        exceptions.ResponseParsing,
+    ) as e:
         logger.warning(e)

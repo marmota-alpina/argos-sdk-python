@@ -35,9 +35,23 @@ class ArgosSocket:
     def __exit__(self, exception_type, exception_value, traceback):
         self.socket.close()
 
-    def send_command(self, command):
-        self.socket.sendall(command.bytes())
-        return self.socket.recv(1024)
+    def send_command(self, command, tries=DEFAULT_MAX_TRIES):
+        if tries == 0:
+            raise SendCommandTimeout(self.address, command)
+        try:
+            tries -= tries
+            self.socket.sendall(command.bytes())
+            raw_response = self.socket.recv(1024)
+            logger.info("Command sent", address=self.address, command=command)
+            return command.parse_response(raw_response)
+        except socket.timeout as e:
+            logger.info(
+                "Send command timeout, trying again",
+                address=self.address,
+                command=command,
+            )
+            time.sleep(self.sleep_between_tries)
+            return self.send_command(command, tries)
 
     def config_socket(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -53,7 +67,7 @@ class ArgosSocket:
         except socket.timeout as e:
             if self.tries < self.max_tries:
                 logger.info(
-                    "Timeout",
+                    "Connection Timeout",
                     address=self.address,
                     try_number=self.tries,
                     retry_after=self.sleep_between_tries,
