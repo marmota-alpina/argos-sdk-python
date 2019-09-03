@@ -1,6 +1,9 @@
 from .responses import GetTimestamp as TimestampResponse
 from .responses import SetTimestamp as SetTimestampResponse
+from .responses import GetCards as GetCardsResponse
 from .responses import Response
+from .exceptions import *
+
 import datetime
 
 
@@ -73,3 +76,20 @@ class SetTimestamp(Command):
         timestamp_string = self.timestamp.strftime(self.timestamp_mask)
         message = f"01+EH+00+{timestamp_string}]00/00/00]00/00/00"
         return message
+
+
+class GetCards(Command):
+    response = GetCardsResponse
+    MAX_CARDS = 20
+
+    def __init__(self, count, start_index):
+        if count > self.MAX_CARDS:
+            raise TooManyCardsRequested(count, self.MAX_CARDS)
+        self.count = count
+        self.start_index = start_index
+
+    def payload(self):
+        return f"01+RCAR+00+{self.count}]{self.start_index}"
+
+    def parse_response(self, raw_response):
+        return self.response(raw_response, self.count)

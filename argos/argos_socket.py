@@ -41,7 +41,7 @@ class ArgosSocket:
         try:
             tries -= tries
             self.socket.sendall(command.bytes())
-            raw_response = self.socket.recv(1024)
+            raw_response = self.socket.recv(4098)
             logger.info("Command sent", address=self.address, command=command)
             return command.parse_response(raw_response)
         except socket.timeout as e:
