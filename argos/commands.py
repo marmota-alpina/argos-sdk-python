@@ -1,6 +1,7 @@
 from .responses import GetTimestamp as TimestampResponse
 from .responses import SetTimestamp as SetTimestampResponse
 from .responses import GetCards as GetCardsResponse
+from .responses import GetQuantity as GetQuantityResponse
 from .responses import Response
 from .exceptions import *
 
@@ -93,3 +94,20 @@ class GetCards(Command):
 
     def parse_response(self, raw_response):
         return self.response(raw_response, self.count)
+
+
+class GetQuantity(Command):
+    response = GetQuantityResponse
+    USERS = "U"
+    CARDS = "C"
+    FINGERPRINTS = "D"
+    MAX_FINGERPRINTS = "TD"
+
+    def __init__(self, type):
+        self.type = type
+
+    def payload(self):
+        return f"01+RQ+00+{self.type}"
+
+    def parse_response(self, raw_response):
+        return self.response(raw_response)

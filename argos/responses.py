@@ -17,7 +17,7 @@ class Response:
             raise ResponseParsing(raw_response, self.find_parse_string(), e)
 
     def _parse(self, raw_response, **extra_fields):
-        p = compile(self.parse_string)
+        p = compile(self.find_parse_string())
         result = p.parse(raw_response.hex()).named
         for key, value in result.items():
             if not isinstance(value, int):  # ints are already parsed
@@ -31,7 +31,7 @@ class Response:
         if not self.status():
             raise GenericErrorResponse(self.data.get("message_id", "UNKNOWN"))
 
-    def find_parse_string():
+    def find_parse_string(self):
         return self.parse_string
 
     @staticmethod
@@ -53,14 +53,14 @@ class Response:
     def string_to_hex_string(ascii_string):
         hex_string = ""
         for char in ascii_string:
-            hex_string += "{:x}".format(ord(char))
+            hex_string += "{:02x}".format(ord(char))
         return hex_string
 
     @staticmethod
     def bytes_to_hex_string(bytes):
         hex_string = ""
         for byte in bytes:
-            hex_string += "{:x}".format(byte)
+            hex_string += "{:02x}".format(byte)
         return hex_string
 
     @staticmethod
@@ -92,9 +92,7 @@ class GetCards(Response):
         checksum_byte = self.checksum_byte(self.raw_response)
         checksum_hex_string = self.bytes_to_hex_string(checksum_byte)
         return (
-            "02{size:2x}"
-            + index
-            + "{message_id:20}2b"
+            "02{size:2x}{index:02x}{message_id:20}2b"
             + self.string_to_hex_string(str(self.count))
             + "2b{raw_cards}"
             + checksum_hex_string
@@ -111,3 +109,16 @@ class GetCards(Response):
         for i in response:
             message_result["cards"].append(i.named)
         return message_result
+
+
+class GetQuantity(Response):
+    message_id_ok = "01+RQ+00"
+
+    def find_parse_string(self):
+        checksum_byte = self.checksum_byte(self.raw_response)
+        checksum_hex_string = self.bytes_to_hex_string(checksum_byte)
+        return (
+            "02{size:2x}00{message_id:16}2b{type}5d{quantity}"
+            + checksum_hex_string
+            + "03"
+        )
