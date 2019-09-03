@@ -50,10 +50,10 @@ class TooManyCardsRequested(Exception):
 
 class GenericErrorResponse(Exception):
     def __init__(self, message_id):
-        self.message_id = cards
+        self.message_id = message_id
 
     def __repr__(self):
-        return f"The biometric reader returned an error for the requested command: {se.message_id}"
+        return f"The biometric reader returned an error for the requested command: {self.message_id}"
 
     def __str__(self):
         return self.__repr__()

@@ -103,11 +103,11 @@ class GetCards(Response):
 
     def _parse(self, raw_response, **extra_fields):
         message_result = super()._parse(raw_response, **extra_fields)
-        print(message_result["raw_cards"])
+        message_result["cards"] = []
         response = findall(
             "[{card_number}[[[[{is_master}[{verify_fingerprint}[[[[[[[[[[",
             message_result["raw_cards"],
         )
         for i in response:
-            print(i.named)
+            message_result["cards"].append(i.named)
         return message_result

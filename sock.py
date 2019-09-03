@@ -26,11 +26,13 @@ ips = [
 for ip in ips:
     try:
         with ArgosSocket(ip) as s:
-            response = s.send_command(GetCards(25, 0))
+            response = s.send_command(GetCards(15, 0))
+            print(response.data)
     except (
         exceptions.ConnectTimeout,
         exceptions.SendCommandTimeout,
         exceptions.ResponseParsing,
         exceptions.TooManyCardsRequested,
+        exceptions.GenericErrorResponse,
     ) as e:
         logger.warning(e)
