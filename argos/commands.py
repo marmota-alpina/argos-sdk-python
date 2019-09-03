@@ -1,5 +1,7 @@
 from .responses import GetTimestamp as TimestampResponse
+from .responses import SetTimestamp as SetTimestampResponse
 from .responses import Response
+import datetime
 
 
 class Command:
@@ -58,3 +60,16 @@ class GetTimestamp(Command):
 
     def payload(self):
         return "01+RH+00"
+
+
+class SetTimestamp(Command):
+    response = SetTimestampResponse
+    timestamp_mask = "%d/%m/%y %H:%M:%S"
+
+    def __init__(self, timestamp=datetime.datetime.now()):
+        self.timestamp = timestamp
+
+    def payload(self):
+        timestamp_string = self.timestamp.strftime(self.timestamp_mask)
+        message = f"01+EH+00+{timestamp_string}]00/00/00]00/00/00"
+        return message
