@@ -8,6 +8,7 @@ class Response:
     def __init__(self, raw_response):
         self.raw_response = raw_response
         self.data = self.parse(raw_response)
+        self.verify_response()
 
     def parse(self, raw_response, **extra_fields):
         try:
@@ -25,6 +26,10 @@ class Response:
 
     def status(self):
         return self.data.get("message_id", "") == self.message_id_ok
+
+    def verify_response(self):
+        if not self.status():
+            raise GenericErrorResponse(self.data.get("message_id", "UNKNOWN"))
 
     def find_parse_string():
         return self.parse_string
