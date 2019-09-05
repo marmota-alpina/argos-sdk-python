@@ -11,6 +11,7 @@ class ArgosSocket:
     DEFAULT_TIMEOUT = 2  # socket timeout (connect included)
     DEFAULT_MAX_TRIES = 5  # how many times the operation should be tried
     DEFAULT_SLEEP_BETWEEN_TRIES = 0.5  # how much to wait between tries.
+    BUFFER_SIZE = 2048
 
     def __init__(
         self,
@@ -39,10 +40,10 @@ class ArgosSocket:
         if tries == 0:
             raise SendCommandTimeout(self.address, command)
         try:
-            tries -= tries
-            self.socket.sendall(command.bytes())
-            raw_response = self.socket.recv(4098)
+            tries -= 1
             logger.info("Command sent", address=self.address, command=command)
+            self.socket.sendall(command.bytes())
+            raw_response = self.receive()
             return command.parse_response(raw_response)
         except socket.timeout as e:
             logger.info(
@@ -57,6 +58,26 @@ class ArgosSocket:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(self.timeout)
         return s
+
+    def receive(self):
+        raw_response = b""
+        while True:
+            partial_response = self.socket.recv(self.BUFFER_SIZE)
+            raw_response += partial_response
+            logger.info(
+                "got more bytes",
+                total_until_now=len(raw_response),
+                chunk_size=len(partial_response),
+            )
+            if self.check_response_integrity(raw_response):
+                logger.info(
+                    "Response completely received!", total_size=len(raw_response)
+                )
+                return raw_response
+
+    @staticmethod
+    def check_response_integrity(raw_response):
+        return raw_response[0] == 0x02 and raw_response[-1] == 0x03
 
     def connect(self):
         self.socket = self.config_socket()

@@ -1,5 +1,8 @@
-from parse import compile, search, findall
+from parse import compile, search, findall, parse
 from .exceptions import *
+import daiquiri
+
+logger = daiquiri.getLogger("Responses")
 
 
 class Response:
@@ -17,11 +20,14 @@ class Response:
             raise ResponseParsing(raw_response, self.find_parse_string(), e)
 
     def _parse(self, raw_response, **extra_fields):
-        p = compile(self.find_parse_string())
-        result = p.parse(raw_response.hex()).named
+        result = parse(self.find_parse_string(), raw_response.hex()).named
         for key, value in result.items():
             if not isinstance(value, int):  # ints are already parsed
-                result[key] = bytes.fromhex(value).decode()
+                try:
+                    result[key] = bytes.fromhex(value).decode()
+                except Exception as e:
+                    logger.info("Couldn't decode value", key=key)
+                    pass
         return result
 
     def status(self):
@@ -88,7 +94,6 @@ class GetCards(Response):
         super().__init__(raw_response)
 
     def find_parse_string(self):
-        index = self.find_message_index(self.count)
         checksum_byte = self.checksum_byte(self.raw_response)
         checksum_hex_string = self.bytes_to_hex_string(checksum_byte)
         return (
@@ -122,3 +127,40 @@ class GetQuantity(Response):
             + checksum_hex_string
             + "03"
         )
+
+
+class SendCards(Response):
+    parse_string = "02{size:2x}00{message_id:30}03"
+    message_id_ok = "01+ECAR+00+1+01"
+
+
+class GetFingerprints(Response):
+    parse_string = "02{size:02x}{index:2x}3031{message_id}5d{card_number}7d{count}7d{fingerprints}e103"
+    message_id_ok = "+RD+00+D"
+    FINGERPRINT_TEMPLATE_SIZE = 768
+
+    def _parse(self, raw_response, **extra_fields):
+        message_result = super()._parse(raw_response, **extra_fields)
+        raw_fingerprints = message_result["fingerprints"]
+        message_result["fingerprints"] = []
+        count = message_result["count"]
+        print(self.fingerprint_parse_string(count))
+        response = parse(self.fingerprint_parse_string(count), raw_fingerprints).named
+        for index, fingerprint in response.items():
+            message_result["fingerprints"].append(fingerprint)
+        print(len(message_result["fingerprints"]))
+        return message_result
+
+    def fingerprint_parse_string(self, count, size=FINGERPRINT_TEMPLATE_SIZE):
+        parse_string = ""
+        for template_index in range(int(count)):
+            template_index_hex = self.string_to_hex_string(str(template_index))
+            parse_string += (
+                template_index_hex
+                + "7b{fingerprint"
+                + str(template_index)
+                + ":"
+                + str(size)
+                + "}"
+            )
+        return parse_string

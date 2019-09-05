@@ -2,6 +2,8 @@ from .responses import GetTimestamp as TimestampResponse
 from .responses import SetTimestamp as SetTimestampResponse
 from .responses import GetCards as GetCardsResponse
 from .responses import GetQuantity as GetQuantityResponse
+from .responses import SendCards as SendCardsResponse
+from .responses import GetFingerprints as GetFingerprintsResponse
 from .responses import Response
 from .exceptions import *
 
@@ -81,7 +83,7 @@ class SetTimestamp(Command):
 
 class GetCards(Command):
     response = GetCardsResponse
-    MAX_CARDS = 20
+    MAX_CARDS = 30
 
     def __init__(self, count, start_index):
         if count > self.MAX_CARDS:
@@ -111,3 +113,34 @@ class GetQuantity(Command):
 
     def parse_response(self, raw_response):
         return self.response(raw_response)
+
+
+class SendCards(Command):
+    response = SendCardsResponse
+    """ Given the card_number is unique, UPDATE or INSERT not seems to change anything """
+    SEND_INSERT = "I"
+    SEND_UPDATE = "A"
+    SEND_DELETE = "E"  # complete wipe out, be careful
+    MASTER_MODE = "1"  # 6 to set master mode.
+
+    def __init__(
+        self, card_number, master=MASTER_MODE, verify_fingerprint=True, mode=SEND_INSERT
+    ):
+        self.card_number = card_number
+        self.master = master
+        self.verify_fingerprint = verify_fingerprint
+        self.mode = mode
+
+    def payload(self):
+        message = f"01+ECAR+00+1+{self.mode}[1[{self.card_number}[[[[{self.master}[{self.verify_fingerprint:d}[[[[[[[[[["
+        return message
+
+
+class GetFingerprints(Command):
+    response = GetFingerprintsResponse
+
+    def __init__(self, card_number):
+        self.card_number = card_number
+
+    def payload(self):
+        return f"01+RD+00+D]{self.card_number}"
