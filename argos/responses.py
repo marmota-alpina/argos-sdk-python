@@ -7,6 +7,19 @@ logger = daiquiri.getLogger("Responses")
 
 class Response:
     parse_string = ""
+    default_response_mapping = {
+        "size": (1, 2, True),
+        "index": (2, 3, True),
+        "response_id": (3, 11, False),
+        "message_status": (9, 11, False),
+        "checksum": (-3, -1, True),
+    }
+    error_messages = {
+        "00": "No errors",
+        "10": "Unknown command",
+        "11": "Invalid package size",
+        "63": "Invalid option",
+    }
 
     def __init__(self, raw_response):
         self.raw_response = raw_response
@@ -14,28 +27,38 @@ class Response:
         self.verify_response()
 
     def parse(self, raw_response, **extra_fields):
-        try:
-            return self._parse(raw_response, **extra_fields)
-        except Exception as e:
-            raise ResponseParsing(raw_response, self.find_parse_string(), e)
+        return self._parse(raw_response, **extra_fields)
 
     def _parse(self, raw_response, **extra_fields):
-        result = parse(self.find_parse_string(), raw_response.hex()).named
-        for key, value in result.items():
-            if not isinstance(value, int):  # ints are already parsed
-                try:
-                    result[key] = bytes.fromhex(value).decode()
-                except Exception as e:
-                    logger.info("Couldn't decode value", key=key)
-                    pass
+        self.default_response_mapping.update(self.response_mapping)
+        result = {}
+        for field, (start, end, as_hex) in self.default_response_mapping.items():
+            bytes = raw_response[start:end]
+            if field is "payload":
+                value = self.parse_payload(bytes)
+            elif as_hex:
+                value = bytes.hex()
+            else:
+                value = bytes.decode()
+            result[field] = value
         return result
 
+    def parse_payload(self, bytes):
+        return bytes.decode()
+
     def status(self):
-        return self.data.get("message_id", "") == self.message_id_ok
+        status_value = int(self.data.get("message_status"))
+        return status_value < 10
+
+    def error_message(self):
+        message_status = self.data.get("message_status")
+        return self.error_messages.get(message_status, "Unknown")
 
     def verify_response(self):
         if not self.status():
-            raise GenericErrorResponse(self.data.get("message_id", "UNKNOWN"))
+            raise GenericErrorResponse(
+                self.data.get("response_id", "UNKNOWN"), self.error_message()
+            )
 
     def find_parse_string(self):
         return self.parse_string
@@ -75,45 +98,35 @@ class Response:
 
 
 class GetTimestamp(Response):
-    parse_string = "02{size:2x}00{message_id:16}2b{timestamp}5d30302f30302f30305d30302f30302f3030{checksum:2x}03"
-    message_id_ok = "01+RH+00"
+    response_mapping = {"payload": (12, 29, False)}
 
 
 class SetTimestamp(Response):
-    parse_string = "02{size:2x}00{message_id:16}{checksum:2x}03"
-    message_id_ok = "01+EH+00"
+    response_mapping = {}
 
 
 class GetCards(Response):
-    message_id_ok = "01+RCAR+00"
+    response_mapping = {
+        "payload": (15, -3, False),
+        "response_id": (3, 13, False),
+        "message_status": (11, 13, False),
+    }
 
     def __init__(self, raw_response, count):
         self.count = count
         self.raw_response = raw_response
-        self.parse_string = self.find_parse_string()
         super().__init__(raw_response)
 
-    def find_parse_string(self):
-        checksum_byte = self.checksum_byte(self.raw_response)
-        checksum_hex_string = self.bytes_to_hex_string(checksum_byte)
-        return (
-            "02{size:2x}{index:02x}{message_id:20}2b"
-            + self.string_to_hex_string(str(self.count))
-            + "2b{raw_cards}"
-            + checksum_hex_string
-            + "03"
-        )
-
-    def _parse(self, raw_response, **extra_fields):
-        message_result = super()._parse(raw_response, **extra_fields)
-        message_result["cards"] = []
+    def parse_payload(self, bytes):
+        results = []
+        print(bytes)
         response = findall(
             "[{card_number}[[[[{is_master}[{verify_fingerprint}[[[[[[[[[[",
-            message_result["raw_cards"],
+            bytes.decode(),
         )
         for i in response:
-            message_result["cards"].append(i.named)
-        return message_result
+            results.append(i.named)
+        return results
 
 
 class GetQuantity(Response):

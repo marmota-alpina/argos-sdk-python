@@ -33,8 +33,9 @@ ips = [
 for ip in ips:
     try:
         with ArgosSocket(ip) as s:
-            response = s.send_command(GetTimestamp())
+            response = s.send_command(GetCards(30, 0))
             print(response.data)
+
     except (
         exceptions.ConnectTimeout,
         exceptions.SendCommandTimeout,
