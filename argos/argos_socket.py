@@ -12,6 +12,10 @@ class ArgosSocket:
     DEFAULT_MAX_TRIES = 5  # how many times the operation should be tried
     DEFAULT_SLEEP_BETWEEN_TRIES = 0.5  # how much to wait between tries.
     BUFFER_SIZE = 2048
+    TIMESTAMP_MASK = "%d/%m/%y %H:%M:%S"
+    TIMESTAMP_MASK_EVENTS = (
+        "%d/%m/%Y %H:%M:%S"
+    )  # the protocol neeeds yyyy format just in events messages...
 
     def __init__(
         self,

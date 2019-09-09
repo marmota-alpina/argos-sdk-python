@@ -6,9 +6,10 @@ from .responses import SendCards as SendCardsResponse
 from .responses import GetFingerprints as GetFingerprintsResponse
 from .responses import CaptureFingerprint as CaptureFingerprintResponse
 from .responses import SendFingerprints as SendFingerprintsResponse
+from .responses import GetEvents as GetEventsResponse
 from .responses import Response
 from .exceptions import *
-
+from .argos_socket import ArgosSocket
 import datetime
 
 
@@ -38,8 +39,9 @@ class Command:
         INIT_BYTE + MESSAGE_SIZE + BYTE_START_MESSAGE + MESSAGE + CHECKSUM + END_BYTE
 
         INIT_BYTE = Identifica o início da transmissão, default 0x02
-        MESSAGE_SIZE = Quantidade de bytes da payload
-        BYTE_START_MESSAGE = Inicializa a payload, default 0x00
+        MESSAGE_SIZE = Quantidade de bytes da payload, dois bytes. o menos significativo fica
+        à esquerda, contrariando o padrão. Por ex uma mensagem com payload 421 bytes ficaria
+        com o size A5 01.
         CHECKSUM = Representa a integridade da mensagem (ver método self.checksum())
         END_BYTE = Indifica o fim da transmissão, default 0x00
 
@@ -87,13 +89,12 @@ class GetTimestamp(Command):
 
 class SetTimestamp(Command):
     response = SetTimestampResponse
-    timestamp_mask = "%d/%m/%y %H:%M:%S"
 
     def __init__(self, timestamp=datetime.datetime.now()):
         self.timestamp = timestamp
 
     def payload(self):
-        timestamp_string = self.timestamp.strftime(self.timestamp_mask)
+        timestamp_string = self.timestamp.strftime(ArgosSocket.TIMESTAMP_MASK)
         message = f"01+EH+00+{timestamp_string}]00/00/00]00/00/00"
         return message
 
@@ -197,3 +198,19 @@ class SendFingerprints(Command):
             command += f"{findex}{'{'}".encode()
             command += bytearray.fromhex(fingerprint)
         return command
+
+
+class GetEvents(Command):
+
+    response = GetEventsResponse
+
+    def __init__(self, start_date, end_date=datetime.datetime.now(), count=50):
+        self.start_date = start_date
+        self.end_date = end_date
+        self.count = count
+
+    def payload(self):
+        start_string = self.start_date.strftime(ArgosSocket.TIMESTAMP_MASK_EVENTS)
+        end_string = self.end_date.strftime(ArgosSocket.TIMESTAMP_MASK_EVENTS)
+        message = f"01+RR+00+D]{self.count}]{start_string}]{end_string}"
+        return message

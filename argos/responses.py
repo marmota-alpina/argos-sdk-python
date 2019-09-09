@@ -1,6 +1,8 @@
 from parse import compile, search, findall, parse
 from .exceptions import *
 import daiquiri
+from .argos_socket import ArgosSocket
+import time
 
 logger = daiquiri.getLogger("Responses")
 
@@ -103,6 +105,10 @@ class Response:
 class GetTimestamp(Response):
     response_mapping = {"payload": (12, 29, False)}
 
+    def parse_payload(self, bytes):
+        string = bytes.decode()
+        return time.strptime(string, ArgosSocket.TIMESTAMP_MASK)
+
 
 class SetTimestamp(Response):
     response_mapping = {}
@@ -174,3 +180,18 @@ class CaptureFingerprint(Response):
 
 class SendFingerprints(Response):
     response_mapping = {}
+
+
+class GetEvents(Response):
+    response_mapping = {"count": (12, 14, False), "payload": (15, -2, False)}
+
+    def parse_payload(self, bytes):
+        results = []
+        print(bytes)
+        response = findall(
+            "{index}[{type}[{card_number}[{timestamp}[{direction}[{is_master}[{reader_id}",
+            bytes.decode(),
+        )
+        for i in response:
+            results.append(i.named)
+        return results
