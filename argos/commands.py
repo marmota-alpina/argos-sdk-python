@@ -4,6 +4,8 @@ from .responses import GetCards as GetCardsResponse
 from .responses import GetQuantity as GetQuantityResponse
 from .responses import SendCards as SendCardsResponse
 from .responses import GetFingerprints as GetFingerprintsResponse
+from .responses import CaptureFingerprint as CaptureFingerprintResponse
+from .responses import SendFingerprints as SendFingerprintsResponse
 from .responses import Response
 from .exceptions import *
 
@@ -45,9 +47,13 @@ class Command:
         A string é convertida para um bytearray ao final do processo, pelo socket.
         """
         payload = self.payload()  # método implementado por cada command
-        payload_size = f"{len(payload):02X}"  # hexa com a garantia do "0" na frente
-        payload_hex = payload.encode().hex()
-        start_hex = f"{Command.BYTE_INIT}{payload_size}{Command.BYTE_START_MESSAGE}"
+        payload_size = self.payload_size(
+            payload
+        )  # hexa com a garantia do "0" na frente
+        if not isinstance(payload, bytes):
+            payload = payload.encode()
+        payload_hex = payload.hex()
+        start_hex = f"{Command.BYTE_INIT}{payload_size}"
         checksum_hex = self.checksum(start_hex, payload_hex)
         end_hex = f"{checksum_hex}{Command.BYTE_END}"
         return f"{start_hex}{payload_hex}{end_hex}"
@@ -58,7 +64,18 @@ class Command:
         checksum_byte = byte_array[1]
         for byte in byte_array[2:]:
             checksum_byte = checksum_byte ^ byte
+        checksum_byte = checksum_byte & 0xFF
         return f"{checksum_byte:02X}"
+
+    @staticmethod
+    def payload_size(payload):
+        hex_size = f"{len(payload):02X}".zfill(4)
+        str_chunk_size = int(len(hex_size) / 2)
+        firstbyte, secondbyte = (
+            hex_size[:str_chunk_size],
+            hex_size[str_chunk_size:],
+        )  # the protocol says the most significant byte should come after (??)
+        return secondbyte + firstbyte
 
 
 class GetTimestamp(Command):
@@ -93,9 +110,6 @@ class GetCards(Command):
 
     def payload(self):
         return f"01+RCAR+00+{self.count}]{self.start_index}"
-
-    def parse_response(self, raw_response):
-        return self.response(raw_response, self.count)
 
 
 class GetQuantity(Command):
@@ -144,3 +158,42 @@ class GetFingerprints(Command):
 
     def payload(self):
         return f"01+RD+00+D]{self.card_number}"
+
+
+class DeleteFingerprints(Command):
+    response = GetFingerprintsResponse
+
+    def __init__(self, card_number):
+        self.card_number = card_number
+
+    def payload(self):
+        return f"01+ED+00+E]{self.card_number}"
+
+
+class CaptureFingerprint(Command):
+    response = CaptureFingerprintResponse
+
+    def __init__(self, card_number):
+        self.card_number = card_number
+
+    def payload(self):
+        return f"01+CB+00+{self.card_number}"
+
+
+class SendFingerprints(Command):
+    response = SendFingerprintsResponse
+
+    def __init__(self, card_number, fingerprints):
+        self.fingerprints = fingerprints
+        self.card_number = card_number
+
+    def payload(self):
+        fingerprints = self.fingerprints
+        count = len(fingerprints)
+        start = f"01+ED+00+D]{self.card_number}{'}'}{count}{'}'}"
+        command = start.encode()
+        for findex in range(count):
+            fingerprint = fingerprints[findex]
+            command += f"{findex}{'{'}".encode()
+            command += bytearray.fromhex(fingerprint)
+        return command

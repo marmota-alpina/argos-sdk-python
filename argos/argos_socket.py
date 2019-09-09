@@ -36,7 +36,8 @@ class ArgosSocket:
     def __exit__(self, exception_type, exception_value, traceback):
         self.socket.close()
 
-    def send_command(self, command, tries=DEFAULT_MAX_TRIES):
+    def send_command(self, command, tries=DEFAULT_MAX_TRIES, timeout=DEFAULT_TIMEOUT):
+        self.socket.settimeout(timeout)
         if tries == 0:
             raise SendCommandTimeout(self.address, command)
         try:
