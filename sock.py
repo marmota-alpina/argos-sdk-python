@@ -52,7 +52,7 @@ for ip in ips:
             #    CaptureFingerprint(card_number="12345676"), timeout=30
             # )
             # response = s.send_command(DeleteFingerprints(card_number="12345676"))
-            response = s.send_command(GetEvents(start_date=d))
+            response = s.send_command(GetEvents(count=3, start_date=d))
             print(response.data)
 
     except (
