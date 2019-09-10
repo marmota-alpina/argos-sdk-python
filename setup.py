@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ArgosSDK",
-    version="0.2.2",
+    version="0.3",
     author="Vinicius Schettino",
     python_requires=">=3.6",
     author_email="vinicius.schettino@ice.ufjf.br",
