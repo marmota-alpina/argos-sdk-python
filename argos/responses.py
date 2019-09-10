@@ -3,6 +3,7 @@ from .exceptions import *
 import daiquiri
 from .argos_socket import ArgosSocket
 import time
+from datetime import datetime
 
 logger = daiquiri.getLogger("Responses")
 
@@ -112,7 +113,8 @@ class GetTimestamp(Response):
 
     def parse_payload(self, bytes):
         string = bytes.decode()
-        return time.strptime(string, ArgosSocket.TIMESTAMP_MASK)
+        timestamp = time.strptime(string, ArgosSocket.TIMESTAMP_MASK)
+        return datetime.fromtimestamp(time.mktime(timestamp))
 
 
 class SetTimestamp(Response):

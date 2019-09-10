@@ -1,0 +1,4 @@
+daiquiri
+parse
+pytest
+pytest-cov

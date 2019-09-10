@@ -84,7 +84,7 @@ class ArgosSocket:
             self.tries = 1
             logger.info("Socket connected", address=self.address)
         except socket.timeout as e:
-            if self.tries < self.max_tries:
+            if self.tries < self.max_tries or self.max_tries == 0:
                 logger.info(
                     "Connection Timeout",
                     address=self.address,

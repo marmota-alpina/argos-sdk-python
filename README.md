@@ -228,6 +228,11 @@ with SDK(ip) as s:
 
 ## Building and testing
 
+You can use docker to build and run the test suit, like:
+```bash
+docker build . -t argos-sdk
+docker run -eEQUIPMENT_IP=x.x.x.x -it argos-sdk
+```
 ## About this Project
 
 This project came from a demand at [Universidade Federal de Juiz de Fora (UFJF)](https://www2.ufjf.br/ufjf/), more specifically the Departamento de Energia Eletrica (DENE) at [Faculdade de Engenharia](http://www.ufjf.br/engenharia/). We needed a better system to access control of our labs and classrooms, so we decided to ship this communication layer as a opensource project.
