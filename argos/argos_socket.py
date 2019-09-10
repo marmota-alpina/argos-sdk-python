@@ -8,7 +8,7 @@ logger = daiquiri.getLogger("ArgosSocket")
 
 class ArgosSocket:
     DEFAULT_PORT = 3000
-    DEFAULT_TIMEOUT = 2  # socket timeout (connect included)
+    DEFAULT_TIMEOUT = 3  # socket timeout (connect included)
     DEFAULT_MAX_TRIES = 5  # how many times the operation should be tried
     DEFAULT_SLEEP_BETWEEN_TRIES = 0.5  # how much to wait between tries.
     BUFFER_SIZE = 2048
@@ -32,13 +32,6 @@ class ArgosSocket:
         self.sleep_between_tries = sleep_between_tries
         self.tries = 1
         self.socket = self.config_socket()
-
-    def __enter__(self):
-        self.connect()
-        return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        self.socket.close()
 
     def send_command(self, command, tries=DEFAULT_MAX_TRIES, timeout=DEFAULT_TIMEOUT):
         self.socket.settimeout(timeout)
@@ -105,3 +98,6 @@ class ArgosSocket:
             else:
                 raise ConnectTimeout(self.address, self.port, self.tries)
                 self.tries = 0
+
+    def close(self):
+        self.socket.close()

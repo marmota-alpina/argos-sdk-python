@@ -35,9 +35,9 @@ class Response:
         return self._parse(raw_response, **extra_fields)
 
     def _parse(self, raw_response, **extra_fields):
-        self.default_response_mapping.update(self.response_mapping)
+        response_mapping = dict(self.default_response_mapping, **self.response_mapping)
         result = {}
-        for field, (start, end, as_hex) in self.default_response_mapping.items():
+        for field, (start, end, as_hex) in response_mapping.items():
             bytes = raw_response[start:end]
             if field is "payload":
                 value = self.parse_payload(bytes)
@@ -52,7 +52,10 @@ class Response:
         return bytes.decode()
 
     def status(self):
-        status_value = int(self.data.get("message_status"))
+        try:
+            status_value = int(self.data.get("message_status"))
+        except Exception as e:
+            status_value = 9999
         return status_value < 10
 
     def error_message(self):
@@ -73,6 +76,8 @@ class Response:
         return "0" + str(int(count // 10))
 
     def __repr__(self):
+        if self.data.get("payload") is not None:
+            return repr(self.data["payload"])
         return repr(self.data)
 
     def __len__(self):
@@ -123,7 +128,6 @@ class GetCards(Response):
 
     def parse_payload(self, bytes):
         results = []
-        print(bytes)
         response = findall(
             "[{card_number}[[[[{is_master}[{verify_fingerprint}[[[[[[[[[[",
             bytes.decode(),
@@ -187,7 +191,6 @@ class GetEvents(Response):
 
     def parse_payload(self, bytes):
         results = []
-        print(bytes)
         response = findall(
             "{index}[{type}[{card_number}[{timestamp}[{direction}[{is_master}[{reader_id}",
             bytes.decode(),

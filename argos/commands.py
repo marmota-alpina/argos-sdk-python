@@ -115,10 +115,6 @@ class GetCards(Command):
 
 class GetQuantity(Command):
     response = GetQuantityResponse
-    USERS = "U"
-    CARDS = "C"
-    FINGERPRINTS = "D"
-    MAX_FINGERPRINTS = "TD"
 
     def __init__(self, type):
         self.type = type
@@ -132,15 +128,8 @@ class GetQuantity(Command):
 
 class SendCards(Command):
     response = SendCardsResponse
-    """ Given the card_number is unique, UPDATE or INSERT not seems to change anything """
-    SEND_INSERT = "I"
-    SEND_UPDATE = "A"
-    SEND_DELETE = "E"  # complete wipe out, be careful
-    MASTER_MODE = "1"  # 6 to set master mode.
 
-    def __init__(
-        self, card_number, master=MASTER_MODE, verify_fingerprint=True, mode=SEND_INSERT
-    ):
+    def __init__(self, card_number, master, verify_fingerprint, mode):
         self.card_number = card_number
         self.master = master
         self.verify_fingerprint = verify_fingerprint
@@ -204,7 +193,7 @@ class GetEvents(Command):
 
     response = GetEventsResponse
 
-    def __init__(self, start_date, end_date=datetime.datetime.now(), count=50):
+    def __init__(self, start_date, end_date, count=50):
         self.start_date = start_date
         self.end_date = end_date
         self.count = count
