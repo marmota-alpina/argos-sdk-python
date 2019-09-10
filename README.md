@@ -36,7 +36,7 @@ now = datetime.today()
 d = now - timedelta(days=1)
 try:
     with SDK(ip) as s:
-        s.set_timestamp(timestamp=now).data
+        s.set_timestamp(timestamp=now)
         s.get_timestamp()
         s.get_cards(count=14, start_index=0)
         s.get_quantity(type=SDK.QT_CARDS)
@@ -73,6 +73,20 @@ Every command can receive the following ``**connection_params``:
 1. `timeout` overrides the SDK configuration on how much the socket should hang while expecting a response.
 1. `tries` overrides the SDK configuration on how many times the command should be resend before it gives up.
 
+# Command response
+Commands always return a `Response` object. If you want to access the returned data, you can simply use it as a dict:
+
+```python
+with SDK(ip) as s:
+    response = s.set_timestamp(timestamp=now)
+    print(response) # print the response dict repr()
+    print(response.data) # the actual dict with the response data
+    print(response['payload']) # the payload of the response, already parsed
+
+```
+
+If the return code is **greater than 10**, it means something went wrong. A `GenericErrorResponse` or one of its children will be raised containing more information.
+
 ## Command list
 
 ### SDK.get_timestamp([\*\*conection_params])
@@ -82,12 +96,70 @@ Get the current timestamp setted on the equipment.
 
 **Returns**: datetime object
 
+### SDK.set_timestamp([timestamp], [\*\*conection_params])
+Set the current timestamp setted on the equipment.
+
+**Expects**: Datime object. If none, `datetime.now()` will be used instead.
+
+**Returns**: No payload.
+
+### SDK.get_cards(count, start_index, [\*\*conection_params])
+Retrieve the cards registered, between `[start_index, start_index+count]`.
+The protocol here limitates the response into 30 cards. If you try to get more than
+that, a `TooManyCardsRequested` will be raised.
+
+**Expects**:
+1. `count`: how many cards
+1. `start_index`: from index. These parameters work like SQL's [LIMIT and OFFSET](http://www.sqltutorial.org/sql-limit/)
+
+**Returns**: payload containing `count` cards on a list
+
+### SDK.get_quantity([type, \*\*conection_params])
+Get the count of a given entry type.
+
+
+**Expects**: Type. The options are:
+
+1. SDK.QT_USERS = "U"
+1. SDK.QT_CARDS = "C"
+1. SDK.QT_FINGERPRINTS = "D"
+1. SDK.QT_MAX_FINGERPRINTS = "TD"
+
+**Returns**: a String containing a numeric value.
+
+### SDK.send_cards([card_number, [master], [verify_fingerprint], [send_mode]\*\*conection_params])
+Get the current timestamp setted on the equipment.
+
+**Expects**:
+1. `card_number` MAX 20
+1. `master` the card type, being:
+  - SDK.NORMAL_MODE ('1') without master access (default)
+  - SDK.MASTER_MODE ('6') master access
+1. `verify_fingerprint` whether the fingerprint is required to validate access (default True)
+1. `send_mode` the way the command should be send, being:
+  - SEND_INSERT = "I" (default)
+  - SEND_UPDATE = "A"
+  - SEND_DELETE = "E"  (complete wipe out, be careful)
+
+**Returns**: No payload
+
+### SDK.send_fingerprints(card_number, fingerprints[\*\*conection_params])
+Send a list of fingerprints to the reader.
+
+**Expects**:
+1. `card_number` MAX 20 (must be registered already)
+1. `fingerprints` a list of fingerprints as hex strings.
+
+**Returns**: No payload
+
+
 ## Basic package protocol information
 
 ## Create your own command
 
 ## #ToDo stuff
-1. Use checksum byte in order to verify
+1. Use checksum byte in order to verify package integrity. Today it only verifies the start/end bytes.
+1. Send more than one card at time.
 
 ## Building and testing
 
