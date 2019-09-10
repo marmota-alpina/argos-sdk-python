@@ -143,6 +143,22 @@ Get the current timestamp setted on the equipment.
 
 **Returns**: No payload
 
+### SDK.capture_fingerprints(card_number, [\*\*conection_params])
+Ask to the reader to collect a new fingerprint. The user will have about 15 seconds to put his finger on the reader. The system will ask the user to put the finger twice to confirm and save it into memory.
+
+**Expects**:
+1. `card_number` MAX 20 (must be registered already)
+
+**Returns**: No payload
+
+### SDK.get_fingerprints(card_number, [\*\*conection_params])
+Get all fingerprints of a card from the equipment.
+
+**Expects**:
+1. `card_number` MAX 20 (must be registered already)
+
+**Returns**: List of hex strings representing the fingerprint.
+
 ### SDK.send_fingerprints(card_number, fingerprints[\*\*conection_params])
 Send a list of fingerprints to the reader.
 
@@ -152,11 +168,60 @@ Send a list of fingerprints to the reader.
 
 **Returns**: No payload
 
+### SDK.delete_fingerprints(card_number, [\*\*conection_params])
+Clear fingerprints of a card.
+
+**Expects**:
+1. `card_number` MAX 20 (must be registered already)
+
+**Returns**: No payload
+
+### SDK.get_events(start_date, [end_date], [\*\*conection_params])
+Get the current timestamp setted on the equipment.
+
+**Expects**:
+1. `start_date` datetime object
+1. `end_date` datetime object, `default datetime.now()`
+
+**Returns**: A list of events.
 
 ## Basic package protocol information
+Usually the protocol follows this format:
+```python
+{START:1}{PAYLOAD_SIZE:2}{MESSAGE:8|10}{PAYLOAD:??}{CHECKSUM:1}{END:1}
+```
+
+1. `START`: Initial byte - 0x02
+1. `PAYLOAD_SIZE`: 2 bytes where the most significant byte is most right. **Like 421 = A5 01 (not 01 A5)**  
+1. `MESSAGE`: that can be 8 byte like "00+RH+00" or 10 byte like "00+ECAR+00". The first two bytes indicate the version, and the last two bytes whether there was an error.
+1. `CHECKSUM`: resut of a **bitwise xor** of each byte from `PAYLOAD_SIZE` to the end of the `PAYLOAD`.
+1. `END`: End byte - 0x03
 
 ## Create your own command
 
+You can extend this project creating your own command and sending it to the SDK. It would be something like this:
+
+
+```python
+from argos import SDK, Command, Response
+
+class AnotherResponse(Response):
+    response_mapping = {"payload": (12, 29, False)}
+
+    def parse_payload(self, bytes):
+        string = bytes.decode()
+        return self.dosomething(string)
+
+class AnotherCommand(Command):
+    response = AnotherResponse
+
+    def payload(self):
+        return "01+??+00"
+
+with SDK(ip) as s:
+    response = s.send_command(AnotherCommand(params), timeout=30)
+    print(response['payload'])
+```
 ## #ToDo stuff
 1. Use checksum byte in order to verify package integrity. Today it only verifies the start/end bytes.
 1. Send more than one card at time.
@@ -164,3 +229,5 @@ Send a list of fingerprints to the reader.
 ## Building and testing
 
 ## About this Project
+
+This project came from a demand at [Universidade Federal de Juiz de Fora (UFJF)](https://www2.ufjf.br/ufjf/), more specifically the Departamento de Energia Eletrica (DENE) at [Faculdade de Engenharia](http://www.ufjf.br/engenharia/). We needed a better system to access control of our labs and classrooms, so we decided to ship this communication layer as a opensource project.
