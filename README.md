@@ -29,8 +29,8 @@ logger = daiquiri.getLogger()
 
 ip = "192.168.0.200"
 fingerprints = [
-    "putsomefingerprintshere",
-    "putanotherfingerprinthere"
+    "021474747414",
+    "021474747414"
 ]
 now = datetime.today()
 d = now - timedelta(days=1)
@@ -50,7 +50,6 @@ try:
 except (
     exceptions.ConnectTimeout,
     exceptions.SendCommandTimeout,
-    exceptions.ResponseParsing,
     exceptions.TooManyCardsRequested,
     exceptions.GenericErrorResponse,
 ) as e:
@@ -232,6 +231,8 @@ You can use docker to build and run the test suit, like:
 ```bash
 docker build . -t argos-sdk
 docker run -eEQUIPMENT_IP=x.x.x.x -it argos-sdk
+# build and upload it to PyPi
+docker run -eTWINE_PASSWORD=pass -eTWINE_USERNAME=user -eARGOS_SDK_VERSION=3.0 argos-sdk sh ./build_script
 ```
 ## About this Project
 
