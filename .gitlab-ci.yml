@@ -1,0 +1,21 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+
+before_script:
+  - apk --update add openssh-client
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+build-sdk:
+  stage: build
+  script:
+    - docker build --pull -f Dockerfile -t $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+    - docker run -eARGOS_SDK_VERSION=$CI_COMMIT_TAG --env-file=$ENV_FILE $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG sh ./build_script
+  only:
+    - tags
