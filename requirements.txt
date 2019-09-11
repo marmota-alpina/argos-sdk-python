@@ -2,3 +2,7 @@ daiquiri
 parse
 pytest
 pytest-cov
+setuptools
+wheel
+tqdm
+twine
