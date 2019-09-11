@@ -1,16 +1,17 @@
-from .responses import GetTimestamp as TimestampResponse
-from .responses import SetTimestamp as SetTimestampResponse
-from .responses import GetCards as GetCardsResponse
-from .responses import GetQuantity as GetQuantityResponse
-from .responses import SendCards as SendCardsResponse
-from .responses import GetFingerprints as GetFingerprintsResponse
-from .responses import CaptureFingerprint as CaptureFingerprintResponse
-from .responses import SendFingerprints as SendFingerprintsResponse
-from .responses import GetEvents as GetEventsResponse
-from .responses import Response
-from .exceptions import *
-from .argos_socket import ArgosSocket
 import datetime
+
+from .argos_socket import ArgosSocket
+from .exceptions import *
+from .responses import CaptureFingerprint as CaptureFingerprintResponse
+from .responses import GetCards as GetCardsResponse
+from .responses import GetEvents as GetEventsResponse
+from .responses import GetFingerprints as GetFingerprintsResponse
+from .responses import GetQuantity as GetQuantityResponse
+from .responses import GetTimestamp as TimestampResponse
+from .responses import Response
+from .responses import SendCards as SendCardsResponse
+from .responses import SendFingerprints as SendFingerprintsResponse
+from .responses import SetTimestamp as SetTimestampResponse
 
 
 class Command:

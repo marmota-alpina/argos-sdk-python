@@ -1,7 +1,9 @@
 import socket
 import time
-from .exceptions import *
+
 import daiquiri
+
+from .exceptions import *
 
 logger = daiquiri.getLogger("ArgosSocket")
 

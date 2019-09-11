@@ -1,15 +1,17 @@
-from parse import compile, search, findall, parse
-from .exceptions import *
-import daiquiri
-from .argos_socket import ArgosSocket
 import time
 from datetime import datetime
 
-logger = daiquiri.getLogger("Responses")
+import daiquiri
+from parse import findall, parse
+
+from .argos_socket import ArgosSocket
+from .exceptions import GenericErrorResponse
+
+logger = daiquiri.getLogger("Responses")  # pylint: disable=C0103
 
 
 class Response:
-    parse_string = ""
+    response_mapping = {}
     default_response_mapping = {
         "size": (1, 2, True),
         "index": (2, 3, True),
@@ -32,30 +34,30 @@ class Response:
         self.data = self.parse(raw_response)
         self.verify_response()
 
-    def parse(self, raw_response, **extra_fields):
-        return self._parse(raw_response, **extra_fields)
+    def parse(self, raw_response):
+        return self._parse(raw_response)
 
-    def _parse(self, raw_response, **extra_fields):
+    def _parse(self, raw_response):
         response_mapping = dict(self.default_response_mapping, **self.response_mapping)
         result = {}
         for field, (start, end, as_hex) in response_mapping.items():
-            bytes = raw_response[start:end]
-            if field is "payload":
-                value = self.parse_payload(bytes)
+            bytea = raw_response[start:end]
+            if field == "payload":
+                value = self.parse_payload(bytea)
             elif as_hex:
-                value = bytes.hex()
+                value = bytea.hex()
             else:
-                value = bytes.decode()
+                value = bytea.decode()
             result[field] = value
         return result
 
-    def parse_payload(self, bytes):
-        return bytes.decode()
+    def parse_payload(self, bytea):  # pylint: disable=no-self-use
+        return bytea.decode()
 
     def status(self):
         try:
             status_value = int(self.data.get("message_status"))
-        except Exception as e:
+        except ValueError:
             status_value = 9999
         return status_value < 10
 
@@ -68,9 +70,6 @@ class Response:
             raise GenericErrorResponse(
                 self.data.get("response_id", "UNKNOWN"), self.error_message()
             )
-
-    def find_parse_string(self):
-        return self.parse_string
 
     @staticmethod
     def find_message_index(count):
@@ -96,29 +95,18 @@ class Response:
             hex_string += "{:02x}".format(ord(char))
         return hex_string
 
-    @staticmethod
-    def bytes_to_hex_string(bytes):
-        hex_string = ""
-        for byte in bytes:
-            hex_string += "{:02x}".format(byte)
-        return hex_string
-
-    @staticmethod
-    def checksum_byte(raw_response):
-        return raw_response[-2:-1]
-
 
 class GetTimestamp(Response):
     response_mapping = {"payload": (12, 29, False)}
 
-    def parse_payload(self, bytes):
-        string = bytes.decode()
+    def parse_payload(self, bytea):
+        string = bytea.decode()
         timestamp = time.strptime(string, ArgosSocket.TIMESTAMP_MASK)
         return datetime.fromtimestamp(time.mktime(timestamp))
 
 
 class SetTimestamp(Response):
-    response_mapping = {}
+    pass
 
 
 class GetCards(Response):
@@ -128,11 +116,11 @@ class GetCards(Response):
         "message_status": (11, 13, False),
     }
 
-    def parse_payload(self, bytes):
+    def parse_payload(self, bytea):
         results = []
         response = findall(
             "[{card_number}[[[[{is_master}[{verify_fingerprint}[[[[[[[[[[",
-            bytes.decode(),
+            bytea.decode(),
         )
         for i in response:
             results.append(i.named)
@@ -154,14 +142,14 @@ class GetFingerprints(Response):
     response_mapping = {"payload": (23, -2, False)}
     FINGERPRINT_TEMPLATE_SIZE = 768
 
-    def parse_payload(self, bytes):
-        if len(bytes) == 0:
-            return
+    def parse_payload(self, bytea):
+        if len(bytea) == 0:  # pylint: disable=C1801
+            return {}
         result = []
-        count = int(bytes[0:1])
-        raw_hex_fingerprints = bytes.hex()
+        count = int(bytea[0:1])
+        raw_hex_fingerprints = bytea.hex()
         fingerprints = parse(self.fingerprint_parse_string(count), raw_hex_fingerprints)
-        for index, fingerprint in fingerprints.named.items():
+        for _, fingerprint in fingerprints.named.items():
             result.append(fingerprint)
         return result
 
@@ -181,21 +169,21 @@ class GetFingerprints(Response):
 
 
 class CaptureFingerprint(Response):
-    response_mapping = {}
+    pass
 
 
 class SendFingerprints(Response):
-    response_mapping = {}
+    pass
 
 
 class GetEvents(Response):
     response_mapping = {"count": (12, 14, False), "payload": (15, -2, False)}
 
-    def parse_payload(self, bytes):
+    def parse_payload(self, bytea):
         results = []
         response = findall(
             "{index}[{type}[{card_number}[{timestamp}[{direction}[{is_master}[{reader_id}",
-            bytes.decode(),
+            bytea.decode(),
         )
         for i in response:
             results.append(i.named)
