@@ -39,7 +39,7 @@ try:
         s.set_timestamp(timestamp=now)
         s.get_timestamp()
         s.get_cards(count=14, start_index=0)
-        s.get_quantity(type=SDK.QT_CARDS)
+        s.get_quantity(typec=SDK.QT_CARDS)
         s.send_cards(card_number="TEST")
         s.capture_fingerprint(card_number="47854785", timeout=30)
         s.get_fingerprints(card_number="47854785")

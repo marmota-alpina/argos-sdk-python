@@ -1,7 +1,7 @@
 import datetime
 
 from .argos_socket import ArgosSocket
-from .exceptions import *
+from .exceptions import TooManyCardsRequested
 from .responses import CaptureFingerprint as CaptureFingerprintResponse
 from .responses import GetCards as GetCardsResponse
 from .responses import GetEvents as GetEventsResponse
@@ -21,7 +21,7 @@ class Command:
 
     response = Response
 
-    def payload(self):
+    def payload(self):  # pylint: disable=no-self-use
         return ""
 
     def bytes(self):
@@ -55,7 +55,7 @@ class Command:
         )  # hexa com a garantia do "0" na frente
         if not isinstance(payload, bytes):
             payload = payload.encode()
-        payload_hex = payload.hex()
+        payload_hex = payload.hex()  # pylint: disable=no-member
         start_hex = f"{Command.BYTE_INIT}{payload_size}"
         checksum_hex = self.checksum(start_hex, payload_hex)
         end_hex = f"{checksum_hex}{Command.BYTE_END}"
@@ -117,11 +117,11 @@ class GetCards(Command):
 class GetQuantity(Command):
     response = GetQuantityResponse
 
-    def __init__(self, type):
-        self.type = type
+    def __init__(self, typec):
+        self.typec = typec
 
     def payload(self):
-        return f"01+RQ+00+{self.type}"
+        return f"01+RQ+00+{self.typec}"
 
     def parse_response(self, raw_response):
         return self.response(raw_response)
@@ -137,8 +137,7 @@ class SendCards(Command):
         self.mode = mode
 
     def payload(self):
-        message = f"01+ECAR+00+1+{self.mode}[1[{self.card_number}[[[[{self.master}[{self.verify_fingerprint:d}[[[[[[[[[["
-        return message
+        return f"01+ECAR+00+1+{self.mode}[1[{self.card_number}[[[[{self.master}[{self.verify_fingerprint:d}[[[[[[[[[["
 
 
 class GetFingerprints(Command):

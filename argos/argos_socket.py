@@ -3,9 +3,9 @@ import time
 
 import daiquiri
 
-from .exceptions import *
+from .exceptions import ConnectTimeout, SendCommandTimeout
 
-logger = daiquiri.getLogger("ArgosSocket")
+logger = daiquiri.getLogger("ArgosSocket")  # pylint: disable=invalid-name
 
 
 class ArgosSocket:
@@ -45,7 +45,7 @@ class ArgosSocket:
             self.socket.sendall(command.bytes())
             raw_response = self.receive()
             return command.parse_response(raw_response)
-        except socket.timeout as e:
+        except socket.timeout:
             logger.info(
                 "Send command timeout, trying again",
                 address=self.address,
@@ -55,9 +55,9 @@ class ArgosSocket:
             return self.send_command(command, tries)
 
     def config_socket(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(self.timeout)
-        return s
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(self.timeout)
+        return sock
 
     def receive(self):
         raw_response = b""
@@ -85,7 +85,7 @@ class ArgosSocket:
             self.socket.connect((self.address, self.port))
             self.tries = 1
             logger.info("Socket connected", address=self.address)
-        except socket.timeout as e:
+        except socket.timeout:
             if self.tries < self.max_tries or self.max_tries == 0:
                 logger.info(
                     "Connection Timeout",
@@ -98,8 +98,8 @@ class ArgosSocket:
                 time.sleep(self.sleep_between_tries)
                 self.connect()
             else:
-                raise ConnectTimeout(self.address, self.port, self.tries)
                 self.tries = 0
+                raise ConnectTimeout(self.address, self.port, self.tries)
 
     def close(self):
         self.socket.close()

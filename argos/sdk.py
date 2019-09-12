@@ -1,5 +1,5 @@
 from .argos_socket import ArgosSocket
-from .commands import *
+from .commands import *  # pylint: disable=unused-wildcard-import,wildcard-import
 
 
 class SDK:
@@ -49,8 +49,8 @@ class SDK:
     def get_cards(self, count, start_index, **args):
         return self.send_command(GetCards(count=count, start_index=start_index), **args)
 
-    def get_quantity(self, type, **args):
-        return self.send_command(GetQuantity(type=type), **args)
+    def get_quantity(self, typec, **args):
+        return self.send_command(GetQuantity(typec=typec), **args)
 
     def send_cards(
         self,
