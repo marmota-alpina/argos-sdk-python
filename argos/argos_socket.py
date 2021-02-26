@@ -1,16 +1,23 @@
 import socket
 import time
-from .exceptions import *
+
 import daiquiri
 
-logger = daiquiri.getLogger("ArgosSocket")
+from .exceptions import ConnectTimeout, SendCommandTimeout
+
+logger = daiquiri.getLogger("ArgosSocket")  # pylint: disable=invalid-name
 
 
 class ArgosSocket:
     DEFAULT_PORT = 3000
-    DEFAULT_TIMEOUT = 2  # socket timeout (connect included)
+    DEFAULT_TIMEOUT = 3  # socket timeout (connect included)
     DEFAULT_MAX_TRIES = 5  # how many times the operation should be tried
     DEFAULT_SLEEP_BETWEEN_TRIES = 0.5  # how much to wait between tries.
+    BUFFER_SIZE = 2048
+    TIMESTAMP_MASK = "%d/%m/%y %H:%M:%S"
+    TIMESTAMP_MASK_EVENTS = (
+        "%d/%m/%Y %H:%M:%S"
+    )  # the protocol neeeds yyyy format just in events messages...
 
     def __init__(
         self,
@@ -28,23 +35,17 @@ class ArgosSocket:
         self.tries = 1
         self.socket = self.config_socket()
 
-    def __enter__(self):
-        self.connect()
-        return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        self.socket.close()
-
-    def send_command(self, command, tries=DEFAULT_MAX_TRIES):
+    def send_command(self, command, tries=DEFAULT_MAX_TRIES, timeout=DEFAULT_TIMEOUT):
+        self.socket.settimeout(timeout)
         if tries == 0:
             raise SendCommandTimeout(self.address, command)
         try:
-            tries -= tries
-            self.socket.sendall(command.bytes())
-            raw_response = self.socket.recv(4098)
+            tries -= 1
             logger.info("Command sent", address=self.address, command=command)
+            self.socket.sendall(command.bytes())
+            raw_response = self.receive()
             return command.parse_response(raw_response)
-        except socket.timeout as e:
+        except socket.timeout:
             logger.info(
                 "Send command timeout, trying again",
                 address=self.address,
@@ -54,9 +55,29 @@ class ArgosSocket:
             return self.send_command(command, tries)
 
     def config_socket(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(self.timeout)
-        return s
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(self.timeout)
+        return sock
+
+    def receive(self):
+        raw_response = b""
+        while True:
+            partial_response = self.socket.recv(self.BUFFER_SIZE)
+            raw_response += partial_response
+            logger.info(
+                "got more bytes",
+                total_until_now=len(raw_response),
+                chunk_size=len(partial_response),
+            )
+            if self.check_response_integrity(raw_response):
+                logger.info(
+                    "Response completely received!", total_size=len(raw_response)
+                )
+                return raw_response
+
+    @staticmethod
+    def check_response_integrity(raw_response):
+        return raw_response[0] == 0x02 and raw_response[-1] == 0x03
 
     def connect(self):
         self.socket = self.config_socket()
@@ -64,8 +85,8 @@ class ArgosSocket:
             self.socket.connect((self.address, self.port))
             self.tries = 1
             logger.info("Socket connected", address=self.address)
-        except socket.timeout as e:
-            if self.tries < self.max_tries:
+        except socket.timeout:
+            if self.tries < self.max_tries or self.max_tries == 0:
                 logger.info(
                     "Connection Timeout",
                     address=self.address,
@@ -77,5 +98,8 @@ class ArgosSocket:
                 time.sleep(self.sleep_between_tries)
                 self.connect()
             else:
-                raise ConnectTimeout(self.address, self.port, self.tries)
                 self.tries = 0
+                raise ConnectTimeout(self.address, self.port, self.tries)
+
+    def close(self):
+        self.socket.close()
