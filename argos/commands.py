@@ -1,7 +1,18 @@
+from .responses import GetTimestamp as TimestampResponse
+from .responses import SetTimestamp as SetTimestampResponse
+from .responses import GetCards as GetCardsResponse
+from .responses import Response
+from .exceptions import *
+
+import datetime
+
+
 class Command:
     BYTE_INIT = "02"
     BYTE_END = "03"
     BYTE_START_MESSAGE = "00"
+
+    response = Response
 
     def payload(self):
         return ""
@@ -9,6 +20,12 @@ class Command:
     def bytes(self):
         message = self.message()
         return bytearray.fromhex(message)
+
+    def parse_response(self, raw_response):
+        return self.response(raw_response)
+
+    def __repr__(self):
+        return self.__class__.__name__
 
     def message(self):
         """
@@ -42,5 +59,37 @@ class Command:
 
 
 class GetTimestamp(Command):
+    response = TimestampResponse
+
     def payload(self):
         return "01+RH+00"
+
+
+class SetTimestamp(Command):
+    response = SetTimestampResponse
+    timestamp_mask = "%d/%m/%y %H:%M:%S"
+
+    def __init__(self, timestamp=datetime.datetime.now()):
+        self.timestamp = timestamp
+
+    def payload(self):
+        timestamp_string = self.timestamp.strftime(self.timestamp_mask)
+        message = f"01+EH+00+{timestamp_string}]00/00/00]00/00/00"
+        return message
+
+
+class GetCards(Command):
+    response = GetCardsResponse
+    MAX_CARDS = 20
+
+    def __init__(self, count, start_index):
+        if count > self.MAX_CARDS:
+            raise TooManyCardsRequested(count, self.MAX_CARDS)
+        self.count = count
+        self.start_index = start_index
+
+    def payload(self):
+        return f"01+RCAR+00+{self.count}]{self.start_index}"
+
+    def parse_response(self, raw_response):
+        return self.response(raw_response, self.count)
